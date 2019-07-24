@@ -1,0 +1,429 @@
+---
+title: "RforDataScienceCh1"
+output: html_document
+---
+Exercises (1) A Graphing Template (p.6)
+---
+1. Run ggplot(data = mpg). What do you see?
+---
+```{r}
+library(tidyverse)
+
+ggplot(data = mpg)
+```
+Nothing is seen. ggplot(data = mpg) creates a coordinate system with no layers (no labels, no aesthetics, no geometry)
+
+2. How many rows are in mtcars? How many columns?
+---
+```{r}
+nrow(mtcars)
+ncol(mtcars)
+dim(mtcars)
+```
+There are 32 rows in mtcars and 11 columns. That means 11 variables and 32 observations.
+
+3. What does the drv variable descirbe? Read the help for ?mpg to find out.
+---
+```{r}
+?mpg
+```
+
+The output from the help 
+"drv
+
+    f = front-wheel drive, r = rear wheel drive, 4 = 4wd"
+    
+```{r}
+glimpse(mpg)
+```
+
+4. Make a scatterplot of hwy vs cyl
+---
+First, hwy is "highway miles per gallon", a measure of fuel economy, and cyl is a measure of the number of cylinders an engine has. We can use the context to hypothesize that there is a negative relationship between the number of cylinders and the highway miles per gallon.
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(aes(x = cyl, y = hwy))
+```
+
+5. What happens if you make scatterplot of class versus drv? Why is the plot not useful?
+---
+class is the type of car, and drv is the type of drivetrain. class and drv are both of type chr.
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(aes(x = class, y = drv))
+```
+
+There is no clear order to either variable, so we cannot surmise a meaningful relationship between the two variables. It does not mean anything to say "as class increases, drivetrain decreases." Therefore, a scatterplot does not convey useful information in that regard. However it still allows us to quickly see which classes of cars tend to offer rear, f, or 4 drive trains, so I don't agree that it's not useful.
+
+Unasked questions : messing around with lm
+---
+```{r}
+ggplot(data = mpg) + 
+  geom_point(aes(x = displ, y = hwy))
+
+model1 <- lm(hwy ~ displ, mpg)
+summary(model1)
+```
+
+Let's color by car type.
+
+```{r}
+ggplot( data = mpg ) +
+  geom_point(aes(x = displ, y = hwy, color = class))
+```
+
+Let's filter out 2 seaters, subcompacts, and hwy >= 40, because these seem to affect the linearity of the relationship, and in some cases seem to be outright outliers.
+
+```{r}
+mpg_big <- mpg %>%
+  filter(class != "2seater") %>%
+  filter(class != "subcompact") %>%
+  filter( hwy < 40)
+
+ggplot( data = mpg_big ) +
+  geom_point(aes(x = displ, y = hwy, color = class))
+
+model2 <- lm(hwy ~ displ, mpg_big)
+summary(model2)
+
+```
+  We can see from the stats (t - values and F stats) that the model has improved (indicating that the relationship is closer to linear.)
+  
+Exercises (2) Aesthetic Mappings (p. 7)
+---
+  Exercises
+  
+1. What's gone wrong with this code? Why are the points not blue?
+---  
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(
+    mapping = aes(x = displ, y = hwy, color = "blue")
+  )
+```
+
+The reason it's not blue is that in order to assign it a non-variable aesthetic, the assignment has to be made outside of the call to aes (which maps "levels" of an aesthetic to "values" of the data). So what happens is that assigns the default color to a single valued variable "blue". 
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(
+    mapping = aes(x = displ, y = hwy), color = "blue"
+  )
+```
+2.Which variables in mpg are categorical? Which variables are continuous? (Hint: type ?mpg to read the documentation)
+---
+```{r}
+?mpg
+
+glimpse(mpg)
+
+(mpg_numeric <- dplyr::select_if(mpg, is.numeric))
+
+(mpg_character <- dplyr::select_if(mpg, is.character))
+categorical <- names(mpg_character)
+```
+
+
+3. Map a continuous variable to color, size, and shape. How do these aesthetics behave differently for categorical versus continuous variables?
+---
+
+We will use mtcars which has several continuous variables: disp, hp, wt, mpg, ...
+```{r}
+?mtcars
+
+ggplot(data = mtcars) +
+  geom_point( aes(x = disp, y = hp, color = mpg)) 
+
+ggplot(data = mtcars) +
+  geom_point( aes(x = disp, y = hp, size = mpg)) 
+
+#will cause an error "Error: A continuous variable can not be mapped to shape"
+#ggplot(data = mtcars) +
+#  geom_point( aes(x = disp, y = hp, shape = mpg)) 
+
+```
+Mapping a continuous value to color causes ggplot to assign a gradient of color to the values.
+Mapping a continuous value to size causes ggplot to assign fixed levels (assigning the values by rounding to the nearest level)
+Mapping a continuous value to shape cases ggplot to error "cannot assign shape to a continuous variable"
+
+4. What happens if you map the same variable to multiple aesthetics?
+---
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(aes(x = displ, y = displ, color = displ, size = displ))
+```
+
+The answer is that it applies all of the aesthetics.
+
+5. What does the stroke aesthetic do? What shapes does it work with? (Hint: use ?geom_point)
+---
+
+See the comment (copied from the help, to get the answer) although it seems to actually work with whatever shape!
+```{r}
+?geom_point
+# For shapes that have a border (like 21), you can colour the inside and
+# outside separately. Use the stroke aesthetic to modify the width of the
+# border
+ggplot(mtcars, aes(wt, mpg, stroke = cyl)) +
+  geom_point(shape = 22, colour = "black", fill = "red", size = 5)
+```
+
+
+6. what happens when you map an aesthetic to something other than a variable name, like aes(color = displ < 5)?
+---
+It probably assigns default values as if it were a variable with as many values as the return of whatever you assigned it to. Like assigning color = "blue" inside the aes( )
+
+```{r}
+?mpg
+ggplot(data = mpg) +
+  geom_point(aes(displ, hwy, color = displ < 5))
+```
+yes, it would appear I guessed correct. It's good to know what mistakes look like, so that if you get something weird you can debug it faster.
+
+Exercises (3) Facets (p. 14)
+---
+
+Use facet_wrap to facet by a single variable facet_wrap(~variable, nrow = 2) where ~ variable is actually a formula object
+Use facet_grid to facet by two varibales facet_grid(row_var ~ col_var)
+
+```{r}
+#demo facet_wrap
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_wrap(~ class, nrow = 2)
+
+# Use the `labeller` option to control how labels are printed, you can wrap over two variables also:
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(c("cyl", "drv"), labeller = "label_both")
+
+
+#demo facet_grid
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(drv ~ cyl)
+
+#can replace a variable in facet_grid by .
+
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(. ~ cyl)
+
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(drv ~ .)
+```
+
+1. What happens when you facet on a continuous variable?
+---
+
+Answer: well it cannot be truly continuous. 
+```{r}
+
+#orders and obtains the unique values of wt in the mtcars data set
+(unique(arrange(mtcars, wt)$wt))
+
+#facets by the 'continuous' value wt
+ggplot(data = mtcars) +
+  geom_point(aes(mpg, wt)) +
+  facet_wrap(~ wt)
+```
+
+So what happened is that there is a panel for each unique value in the data frame.
+
+2. Wat do the empty cells in a plot with facet_grid(drv ~ cyl) mean? How do tey relate to this plot?
+---
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = drv, y = cyl))
+```
+
+The facet_grid creates a pane for each combination of (drv,cyl) , so an empty pane represents a combination of those two variable's values where there is no data that has that combination, similarly to the blank spots on the scatter plot of (drv,cyl), in fact the blank panels are in the same place but upside down.
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = hwy, y = cty)) +
+  facet_grid(cyl ~ drv)
+```
+
+3. What plots does the following code make? What does . do? 
+---
+
+```{r}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(drv ~ .)
+
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  facet_grid(. ~ cyl)
+```
+
+The dot in the second slot means that the graphs are not faceted along x, but that the y dimension is still faceted along a variable. Since the whole graph is of fixed size it gives horizontal strips. The opposite situation is true when the dot is in the other side of ~ where it indicates to not facet in the y direction, giving vertical strips.
+
+4. What are the advantages to using faceting instead of the color aesthetic? What are the disadvantages? How might the balance change if you had a larger data set?
+---
+Adv: allows you to see the relationship of two patterns characterized by different combinations of categorical variables easier, and this benefit increases with larger data sets where the data would overlap even more if merely colored. Often colored data appears interwoven and it's hard to visually separate the individual color groups. However it makes it harder to compare the groups (by group I mean the data relationship for a fixed combination of categorical variables) with eachother when you facet, where as with color it's often easy to say "this data is always below that data".
+
+5. Read ?facet_wrap. What does nrow do? What does ncol do? What other options control the layout of the individual panels? Why doesn't facet_grid() have nrow and ncol variables?
+
+```{r}
+?facet_wrap
+#facet_wrap wraps a 1d sequence of panels into 2d. This is generally a better use of screen space than facet_grid() because most displays are roughly rectangular.
+?facet_gride
+#facet_grid() forms a matrix of panels defined by row and column faceting variables. It is most useful when you have two discrete variables, and all combinations of the variables exist in the data.
+```
+
+Facet_wrap is a 1 dimensional strip of plots based on the value of 1 categorical variable, or a sequence of ordered pairs of a combination of multiple variables. You then control how that Strip is arranged into a grid by settin nrow and ncol. Facet_grid does not have this option because it varies on two variables and therefore must always be a grid, and nrow and ncol are not arbitrary but defined by the faceting variables.
+
+
+SUPER COOL FEATURE OF FACETING
+---
+```{r}
+
+#normal faceting
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(~class)
+
+
+# To repeat the same data in every panel, simply construct a data frame
+# that does not contain the faceting variable.
+ggplot(mpg, aes(displ, hwy)) +
+  #first add a geometry layer where the data is mpg without the class column, this causes it to copy across facets because you are faceting across a variable that isn't used.
+  geom_point(data = transform(mpg, class = NULL), color = "grey85") +
+  geom_point(color = 'black') +
+  facet_wrap(~class)
+?transform
+```
+
+
+Geometric Objects
+---
+
+```{r}
+p <- ggplot(data = mpg)
+
+p + geom_point(mapping = aes(x = displ, y = hwy))
+p + geom_smooth(mapping = aes(x = displ, y = hwy))
+
+q <- p + geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv, color = drv), fill = 'grey', alpha = 0.5)
+q
+
+q + geom_point(mapping = aes(x = displ, y = hwy, color = drv))
+?geom_smooth
+```
+
+Exercises (4) Geometric Objects
+---
+
+1. What geom would you use to draw a line cart? A boxplot? A histogram? An area chart?
+---
+
+for a line chart  - geom_line()
+for a box plot    - geom_boxplot()
+for a histogram   - geom_histogram() #note this is much different than geom_col() or geom_bar()
+for an area chart - geom_area() 
+
+2.Run this code in your head and predict what the output will look like. Then, run the R and check your predictions.
+---
+
+ggplot(
+  data = mpg,
+  mapping = aes(x = displ, y = hwy, color = drv)
+) +
+geom_point() + 
+geom_smooth(se = FALSE)
+
+My guess, it's going to look exactly like the graph directly above but without the standard error shading. 
+
+```{r}
+ggplot(
+  data = mpg,
+  mapping = aes(x = displ, y = hwy, color = drv)
+) +
+geom_point() + 
+geom_smooth(se = FALSE)
+```
+
+Almost nailed it, except I forgot that linetype was actually also linked to drv in the above graph.
+
+3. What does show.legend = FALSE do? What happens if you remove it? Why do you think I used it earlier in the chapter?
+---
+
+You are actually asking a bizarre question to point out the interesting feature of ggplot that I think you intended to point out. Firstly, it's quite apparent what it does, it makes it so that ggplot surpresses whatever automated legend would have appeared in the graph. What is more interesting, more illuminating, is the second component of this question. IF, for example, we used the *group* aesthetic, ggplot would create separete graphical objects for the grouping we assigned, but unlike the automatic grouping that occurs when we assign an aesthetic to a discrete variable, a direct assignment to the group aesthetic would create no automatic legend.
+
+Compare graphs 2, 3, and 4 below.
+```{r}
+p <- ggplot(data = mpg)
+
+p + geom_smooth(mapping = aes(x = displ, y = hwy))
+p + geom_smooth(mapping = aes(x = displ, y = hwy, group = drv))
+p + geom_smooth(mapping = aes(x = displ, y = hwy, color = drv))
+p + geom_smooth(mapping = aes(x = displ, y = hwy, color = drv),
+                show.legend = FALSE
+)
+```
+
+4. What does the se argument in geom_smooth do? 
+---
+
+Setting it to False removes the bands around the line that represent the standard error of the aproximation which the smooth line represents.
+
+5. Will these two graphs look different? Why/why not?
+---
+
+-1
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point() +
+  geom_smooth()
+-2  
+ggplot() + 
+  geom_point(
+    data = mpg,
+    mapping = aes(x = displ, y = hwy)
+  ) +
+  geom_smooth(
+    data = mpg,
+    mapping = aes(x = displ, y = hwy)
+  )
+  
+No, these graphs will not look different. Why? Well, assigning aesthetics and mappings to the ggplot function amounts to assigning global settings to the overall graph, where as assigning these things to geometry functions, like geom_point, merely overrides the global setting for that particular layer. Now in this example, the first graph has global settings which are simply reproduced by the local settins of the individual geometry layers in the second graph. Let us now test my hypothetical musings.
+
+```{r}
+#-1
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point() +
+  geom_smooth()
+#-2  
+ggplot() + 
+  geom_point(
+    data = mpg,
+    mapping = aes(x = displ, y = hwy)
+  ) +
+  geom_smooth(
+    data = mpg,
+    mapping = aes(x = displ, y = hwy)
+  )
+```
+
+Indded, my hypothesis was proven exactly correct, as the graphs are themselves exactly equal to eachother.
+
+6. Re-create the R code necessary to generate the following graphs
+---
+
+```{r}
+p <- ggplot( data = mpg, aes( x = displ, y = hwy))
+
+q1 <- p + geom_point()
+#TOP LEFT
+q1 + geom_smooth(se = FALSE)
+#TOP RIGHT
+q1 + geom_smooth(se = FALSE, mapping = aes( x = displ, y = hwy, group = drv))
+
+```
+
